@@ -1,25 +1,29 @@
 package web
 
 import (
+	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
-	regexp "github.com/dlclark/regexp2"
+	"xiaoweishu/internal/domain"
+	"xiaoweishu/internal/service"
 )
 
 // UserHandler 定义所有和user相关的路由
 type UserHandler struct {
+	svc         *service.UserService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler() *UserHandler {
+func NewUserHandler(svc *service.UserService) *UserHandler {
 	const (
 		emailRegexPattern    = `^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$`
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
 	)
 
 	return &UserHandler{
+		svc:         svc,
 		emailExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 	}
@@ -76,6 +80,16 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		c.String(http.StatusOK, "密码必须大于8位，且包含特殊字符")
 		return
 	}
+
+	err = u.svc.SignUp(c, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		c.String(http.StatusOK, "系统异常")
+		return
+	}
+
 	c.String(http.StatusOK, "success")
 }
 
