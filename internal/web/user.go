@@ -2,6 +2,7 @@ package web
 
 import (
 	regexp "github.com/dlclark/regexp2"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -32,7 +33,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", u.SignUp)
-	ug.POST("/signin", u.LogIn)
+	ug.POST("/login", u.LogIn)
 	ug.POST("/edit", u.Edit)
 	ug.GET("/profile", u.Profile)
 }
@@ -85,16 +86,70 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		Email:    req.Email,
 		Password: req.Password,
 	})
+	if err == service.ErrUserDuplicateEmail {
+		c.String(http.StatusOK, "邮箱冲突")
+		return
+	}
 	if err != nil {
 		c.String(http.StatusOK, "系统异常")
 		return
 	}
 
-	c.String(http.StatusOK, "success")
+	c.String(http.StatusOK, "注册成功!")
+	return
 }
 
-func (u *UserHandler) LogIn(c *gin.Context) {}
+func (u *UserHandler) LogIn(c *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 
-func (u *UserHandler) Edit(c *gin.Context) {}
+	var req LoginReq
+	if err := c.Bind(&req); err != nil {
+		return
+	}
+	user, err := u.svc.Login(c, req.Email, req.Password)
+	if err == service.ErrInvalidUserOrPassword {
+		c.String(http.StatusOK, "用户名/密码错误")
+		return
+	}
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
 
-func (u *UserHandler) Profile(c *gin.Context) {}
+	// 登录成功后，把 session 拿出来
+	// 设置session
+	sess := sessions.Default(c)
+	// 我需要放在 session 中的值
+	sess.Set("userId", user.Id)
+
+	sess.Options(sessions.Options{
+		//Secure: true,
+		//HttpOnly: true,
+		MaxAge: 60,
+	})
+	sess.Save()
+
+	c.String(http.StatusOK, "登录成功")
+	return
+}
+
+func (u *UserHandler) Logout(c *gin.Context) {
+	sess := sessions.Default(c)
+	sess.Options(sessions.Options{
+		MaxAge: -1,
+	})
+	sess.Save()
+
+	c.String(http.StatusOK, "退出登录成功")
+}
+
+func (u *UserHandler) Edit(c *gin.Context) {
+	c.String(http.StatusOK, "Edit")
+}
+
+func (u *UserHandler) Profile(c *gin.Context) {
+	c.String(http.StatusOK, "Profile")
+}
