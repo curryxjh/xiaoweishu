@@ -35,7 +35,8 @@ func initServer() *gin.Engine {
 		//AllowOrigins: []string{"http://localhost:3000"},
 		//AllowMethods: []string{},
 		AllowHeaders: []string{"authorization", "Content-Type"},
-		//ExposeHeaders: []string{"x-jwt-token"},
+		//
+		ExposeHeaders: []string{"x-jwt-token"},
 		// 是否允许携带用户认证信息，如cookie
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
@@ -61,7 +62,11 @@ func initServer() *gin.Engine {
 
 	server.Use(sessions.Sessions("mysession", store))
 
-	server.Use(middleware.NewLoginMiddlewareBuilder().
+	//server.Use(middleware.NewLoginMiddlewareBuilder().
+	//	IgnorePaths("/users/login").
+	//	IgnorePaths("/users/signup").Build())
+
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/signup").Build())
 	return server
