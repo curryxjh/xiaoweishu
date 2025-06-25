@@ -158,9 +158,15 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		c.String(http.StatusOK, "系统错误")
 		return
 	}
+
+	claims := UserClaims{
+		Uid: user.Id,
+	}
+
 	// 使用 JWT 设置登录状态
 	// 生成一个 JWT
-	token := jwt.New(jwt.SigningMethodHS512)
+	//token := jwt.New(jwt.SigningMethodHS512)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
 
 	c.Header("x-jwt-token", tokenStr)
@@ -186,4 +192,10 @@ func (u *UserHandler) Edit(c *gin.Context) {
 
 func (u *UserHandler) Profile(c *gin.Context) {
 	c.String(http.StatusOK, "Profile")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 声明自己要放进 token 的数据
+	Uid int64
 }
