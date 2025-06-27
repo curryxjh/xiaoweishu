@@ -5,6 +5,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"strings"
+	"time"
+	"xiaoweishu/internal/web"
 )
 
 // LoginJWTMiddlewareBuilder JWT登录校验
@@ -38,9 +40,16 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		segs := strings.SplitN(tokenHeader, " ", 2)
 
 		tokenStr := segs[1]
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+
+		claims := &web.UserClaims{}
+
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"), nil
 		})
+
+		//token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		//	return []byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"), nil
+		//})
 
 		if err != nil {
 			// 未登录
@@ -49,9 +58,16 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		}
 
 		// err != nil, token != nil
-		if token == nil || !token.Valid {
+		if token == nil || !token.Valid || claims.Uid == 0 {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
+		// 每10s刷新一次
+		now := time.Now()
+		if claims.ExpiresAt.Sub(now) < time.Second*50 {
+
+		}
+		c.Set("claims", claims)
 	}
 }

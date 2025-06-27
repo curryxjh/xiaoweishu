@@ -8,6 +8,7 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
+	"time"
 	"xiaoweishu/internal/domain"
 	"xiaoweishu/internal/service"
 )
@@ -38,7 +39,8 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	//ug.POST("/login", u.LogIn)
 	ug.POST("/login", u.LogInJWT)
 	ug.POST("/edit", u.Edit)
-	ug.GET("/profile", u.Profile)
+	//ug.GET("/profile", u.Profile)
+	ug.GET("/profile", u.ProfileJWT)
 }
 
 func (u *UserHandler) SignUp(c *gin.Context) {
@@ -160,6 +162,9 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 	}
 
 	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
 		Uid: user.Id,
 	}
 
@@ -170,8 +175,7 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 	tokenStr, err := token.SignedString([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
 
 	c.Header("x-jwt-token", tokenStr)
-	fmt.Println(tokenStr)
-	fmt.Println(user)
+
 	c.String(http.StatusOK, "登录成功")
 	return
 }
@@ -192,6 +196,22 @@ func (u *UserHandler) Edit(c *gin.Context) {
 
 func (u *UserHandler) Profile(c *gin.Context) {
 	c.String(http.StatusOK, "Profile")
+}
+
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, ok := ctx.Get("claims")
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	fmt.Println(claims.Uid)
 }
 
 type UserClaims struct {
