@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"net/http"
 	"strings"
 	"time"
 	"xiaoweishu/internal/pkg/ginx/middlewares/ratelimit"
@@ -20,13 +21,17 @@ import (
 
 func main() {
 
-	db := initDB()
+	//db := initDB()
 
-	server := initServer()
+	//server := initServer()
 
-	u := initUser(db)
-	u.RegisterRoutes(server)
+	//u := initUser(db)
+	//u.RegisterRoutes(server)
 
+	server := gin.Default()
+	server.GET("/hello", func(c *gin.Context) {
+		c.String(http.StatusOK, "hello world")
+	})
 	server.Run(":8080")
 }
 

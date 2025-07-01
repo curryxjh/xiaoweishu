@@ -165,7 +165,8 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 		},
-		Uid: user.Id,
+		Uid:       user.Id,
+		UserAgent: c.Request.UserAgent(),
 	}
 
 	// 使用 JWT 设置登录状态
@@ -212,10 +213,13 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	}
 
 	fmt.Println(claims.Uid)
+	ctx.String(http.StatusOK, "Profile")
 }
 
 type UserClaims struct {
 	jwt.RegisteredClaims
 	// 声明自己要放进 token 的数据
 	Uid int64
+
+	UserAgent string
 }

@@ -63,6 +63,12 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 
+		if claims.UserAgent != c.Request.UserAgent() {
+			// 严重的安全问题
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		// 每10s刷新一次
 		now := time.Now()
 		if claims.ExpiresAt.Sub(now) < time.Second*50 {
