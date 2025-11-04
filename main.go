@@ -2,8 +2,6 @@ package main
 
 import (
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
@@ -11,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"xiaoweishu/internal/pkg/ginx/middlewares/ratelimit"
 	"xiaoweishu/internal/repository"
+	"xiaoweishu/internal/repository/cache"
 	"xiaoweishu/internal/repository/dao"
 	"xiaoweishu/internal/service"
 	"xiaoweishu/internal/web"
@@ -21,14 +19,14 @@ import (
 
 func main() {
 
-	//db := initDB()
+	db := initDB()
 
-	//server := initServer()
+	server := initServer()
 
-	//u := initUser(db)
-	//u.RegisterRoutes(server)
+	u := initUser(db)
+	u.RegisterRoutes(server)
 
-	server := gin.Default()
+	//server := gin.Default()
 	server.GET("/hello", func(c *gin.Context) {
 		c.String(http.StatusOK, "hello world")
 	})
@@ -38,10 +36,10 @@ func main() {
 func initServer() *gin.Engine {
 	server := gin.Default()
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:16379",
-	})
-	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
+	//redisClient := redis.NewClient(&redis.Options{
+	//	Addr: "localhost:16379",
+	//})
+	//server.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
 
 	server.Use(cors.New(cors.Config{
 		//AllowOrigins: []string{"http://localhost:3000"},
@@ -62,8 +60,8 @@ func initServer() *gin.Engine {
 
 	//store := cookie.NewStore([]byte("secret"))
 
-	store := memstore.NewStore([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"),
-		[]byte("SAmc4oHXzZXPd2Q5tr7A2COHHB0rEk3wrLqfPiwxCDZw5jnNzCahyXxiCafRqkYN"))
+	//store := memstore.NewStore([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"),
+	//	[]byte("SAmc4oHXzZXPd2Q5tr7A2COHHB0rEk3wrLqfPiwxCDZw5jnNzCahyXxiCafRqkYN"))
 
 	//store, err := redis.NewStore(16, "tcp", "localhost:16379", "", "",
 	//	[]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"),
@@ -72,7 +70,7 @@ func initServer() *gin.Engine {
 	//	panic(err)
 	//}
 
-	server.Use(sessions.Sessions("mysession", store))
+	//server.Use(sessions.Sessions("mysession", store))
 
 	//server.Use(middleware.NewLoginMiddlewareBuilder().
 	//	IgnorePaths("/users/login").
@@ -86,7 +84,10 @@ func initServer() *gin.Engine {
 
 func initUser(db *gorm.DB) *web.UserHandler {
 	ud := dao.NewUserDao(db)
-	repo := repository.NewUserRepository(ud)
+	uc := cache.NewUserCache(redis.NewClient(&redis.Options{
+		Addr: "localhost:16379",
+	}), time.Minute*15)
+	repo := repository.NewUserRepository(ud, uc)
 	svc := service.NewUserService(repo)
 	u := web.NewUserHandler(svc)
 	return u

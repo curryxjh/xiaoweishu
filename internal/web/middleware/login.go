@@ -65,6 +65,7 @@ func (l *LoginMiddlewareBuilder) Build() gin.HandlerFunc {
 		if now-updateTimeVal > 10*1000 {
 			sess.Set("update_time", now)
 			sess.Save()
+			return
 		}
 
 	}

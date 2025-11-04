@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+   name: webook
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: webook
+  template:
+    metadata:
+      name: webook
+      labels:
+        app: webook
+    spec:
+      containers:
+        - name: webook
+          image: xjh/webook:v0.0.1
+          ports:
+            - containerPort: 8080
+

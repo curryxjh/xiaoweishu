@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -72,7 +73,12 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		// 每10s刷新一次
 		now := time.Now()
 		if claims.ExpiresAt.Sub(now) < time.Second*50 {
-
+			claims.ExpiresAt = jwt.NewNumericDate(now.Add(time.Minute))
+			tokenStr, err := token.SignedString([]byte("ntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
+			if err != nil {
+				log.Println("jwt 续约失败  ", err)
+			}
+			c.Header("x-jwt-token", tokenStr)
 		}
 		c.Set("claims", claims)
 	}
