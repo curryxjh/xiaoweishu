@@ -38,7 +38,7 @@ func (c *CodeService) Send(ctx context.Context, biz string, phone string) error 
 
 // Verify 验证验证码 biz 区分业务场景
 func (c *CodeService) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
-	return true, nil
+	return c.repo.Verify(ctx, biz, phone, inputCode)
 }
 
 func (c *CodeService) generateCode() string {

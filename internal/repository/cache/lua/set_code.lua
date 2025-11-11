@@ -1,7 +1,7 @@
--- 发送到的key, 也就是 code:biz:phone
+-- 发送到的key, 也就是 phone_code:biz:phone
 -- example: code:login:159xxxxxxxx
 local key = KEYS[1]
--- 验证次数, 一个验证码最多重复三次, 超过三次就不再验证
+-- 验证次数, 一个验证码最多重复三次, 超过三次就不再验证, 记录还可以验证几次
 -- example: code:login:159xxxxxxxx:cnt
 local countKey = key..":cnt"
 -- 验证码

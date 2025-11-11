@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	ErrCodeSendTooMany = cache.ErrCodeSendTooMany
+	ErrCodeSendTooMany   = cache.ErrCodeSendTooMany
+	ErrCodeVerifyTooMany = cache.ErrCodeVerifyTooMany
 )
 
 type CodeRepository struct {
@@ -21,4 +22,8 @@ func NewCodeRepository(c *cache.CodeCache) *CodeRepository {
 
 func (repo *CodeRepository) Store(ctx context.Context, biz, phone, code string) error {
 	return repo.cache.Set(ctx, biz, phone, code)
+}
+
+func (repo *CodeRepository) Verify(ctx context.Context, biz, phone, inputCode string) (bool, error) {
+	return repo.cache.Verify(ctx, biz, phone, inputCode)
 }
