@@ -13,14 +13,17 @@ import (
 	"xiaoweishu/internal/service"
 )
 
+const biz = "login"
+
 // UserHandler 定义所有和user相关的路由
 type UserHandler struct {
 	svc         *service.UserService
+	codeSvc     *service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService) *UserHandler {
+func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
 	const (
 		emailRegexPattern    = `^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$`
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
@@ -28,6 +31,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 
 	return &UserHandler{
 		svc:         svc,
+		codeSvc:     codeSvc,
 		emailExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 	}
@@ -41,6 +45,107 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/edit", u.Edit)
 	//ug.GET("/profile", u.Profile)
 	ug.GET("/profile", u.ProfileJWT)
+	ug.POST("/sms/login/send", u.SendLoginSMSCode)
+	ug.POST("/sms/login/verify", u.VerifyLoginSMSCode)
+}
+
+func (u *UserHandler) SendLoginSMSCode(c *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+	}
+
+	var req Req
+	if err := c.Bind(&req); err != nil {
+		return
+	}
+
+	// 校验是否是合法手机号
+	// 可以使用正则表达式
+	if req.Phone == "" {
+		c.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "手机号不能为空",
+			Data: nil,
+		})
+		return
+	}
+	err := u.codeSvc.Send(c, biz, req.Phone)
+	switch err {
+	case nil:
+		c.JSON(http.StatusOK, Result{
+			Msg:  "短信发送成功",
+			Data: nil,
+		})
+		return
+	case service.ErrCodeSendTooMany:
+		c.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "短信发送太频繁，请稍后再试",
+			Data: nil,
+		})
+	default:
+		c.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+			Data: nil,
+		})
+		return
+	}
+
+}
+
+func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	var req Req
+	if err := c.Bind(&req); err != nil {
+		c.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "参数错误",
+			Data: nil,
+		})
+		return
+	}
+	ok, err := u.codeSvc.Verify(c, biz, req.Phone, req.Code)
+	if err != nil {
+		c.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+			Data: nil,
+		})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "短信验证失败",
+			Data: nil,
+		})
+		return
+	}
+	user, err := u.svc.FindOrCreate(c, req.Phone)
+	if err != nil {
+		c.JSON(http.StatusOK, Result{
+			Msg:  "系统错误",
+			Data: nil,
+		})
+		return
+	}
+	if err := u.SetJWTToken(c, user.Id); err != nil {
+		c.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+			Data: nil,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, Result{
+		Code: 4,
+		Msg:  "短信验证成功",
+		Data: nil,
+	})
 }
 
 func (u *UserHandler) SignUp(c *gin.Context) {
@@ -91,7 +196,7 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		Email:    req.Email,
 		Password: req.Password,
 	})
-	if err == service.ErrUserDuplicateEmail {
+	if err == service.ErrUserDuplicate {
 		c.String(http.StatusOK, "邮箱冲突")
 		return
 	}
@@ -161,11 +266,21 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		return
 	}
 
+	if err := u.SetJWTToken(c, user.Id); err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	c.String(http.StatusOK, "登录成功")
+	return
+}
+
+func (u *UserHandler) SetJWTToken(c *gin.Context, uid int64) error {
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
 		},
-		Uid:       user.Id,
+		Uid:       uid,
 		UserAgent: c.Request.UserAgent(),
 	}
 
@@ -174,11 +289,11 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 	//token := jwt.New(jwt.SigningMethodHS512)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
-
+	if err != nil {
+		return err
+	}
 	c.Header("x-jwt-token", tokenStr)
-
-	c.String(http.StatusOK, "登录成功")
-	return
+	return nil
 }
 
 func (u *UserHandler) Logout(c *gin.Context) {

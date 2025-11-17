@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
+	ErrUserDuplicate         = repository.ErrUserDuplicate
 	ErrInvalidUserOrPassword = errors.New("账号/邮箱或密码不对")
 )
 
@@ -50,4 +50,23 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 
 func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	return svc.repo.FindById(ctx, id)
+}
+
+func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	u, err := svc.repo.FindByPhone(ctx, phone)
+	if err != repository.ErrUserNotFound {
+		// nil 会进入这里
+		// 不为 ErrUserNotFound， 也会进来这里
+		return domain.User{}, err
+		// 不存在，创建一个
+	}
+	u = domain.User{
+		Phone: phone,
+	}
+	err = svc.repo.Create(ctx, u)
+	if err != nil && err != ErrUserDuplicate {
+		return u, err
+	}
+	// 此处会遇到主从延迟的问题，如果真的遇到，只能改 svc.repo.Create 方法，让它返回 id
+	return svc.repo.FindByPhone(ctx, phone)
 }

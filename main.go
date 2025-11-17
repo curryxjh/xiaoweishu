@@ -13,6 +13,7 @@ import (
 	"xiaoweishu/internal/repository/cache"
 	"xiaoweishu/internal/repository/dao"
 	"xiaoweishu/internal/service"
+	"xiaoweishu/internal/service/sms/memory"
 	"xiaoweishu/internal/web"
 	"xiaoweishu/internal/web/middleware"
 )
@@ -22,8 +23,10 @@ func main() {
 	db := initDB()
 
 	server := initServer()
-
-	u := initUser(db)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:16379",
+	})
+	u := initUser(db, rdb)
 	u.RegisterRoutes(server)
 
 	//server := gin.Default()
@@ -78,18 +81,29 @@ func initServer() *gin.Engine {
 
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/login").
-		IgnorePaths("/users/signup").Build())
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/sms/login/send").
+		IgnorePaths("/users/sms/login/verify").Build())
 	return server
 }
 
-func initUser(db *gorm.DB) *web.UserHandler {
+func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	ud := dao.NewUserDao(db)
 	uc := cache.NewUserCache(redis.NewClient(&redis.Options{
 		Addr: "localhost:16379",
 	}), time.Minute*15)
 	repo := repository.NewUserRepository(ud, uc)
 	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
+	codeCache := cache.NewCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	//smsSvc := tencent.NewService(
+	//	sms.NewClient(),
+	//	"14005555555",
+	//	"测试短信",
+	//)
+	smsSvc := memory.NewService()
+	codeSvc := service.NewCodeService(codeRepo, smsSvc)
+	u := web.NewUserHandler(svc, codeSvc)
 	return u
 }
 

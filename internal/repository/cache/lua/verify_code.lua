@@ -14,6 +14,6 @@ elseif expectedCode == code then
 else
     -- 说明用户输入错误
     -- 记录错误次数, 每次错误次数减一, 最多验证三次
-    redis.call("decr", cntKey, -1)
+    redis.call("decr", cntKey)
     return -2
 end

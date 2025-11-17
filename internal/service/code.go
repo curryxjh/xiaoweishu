@@ -13,9 +13,21 @@ const (
 	codeTplId = "1877556"
 )
 
+var (
+	ErrCodeSendTooMany   = repository.ErrCodeSendTooMany
+	ErrCodeVerifyTooMany = repository.ErrCodeSendTooMany
+)
+
 type CodeService struct {
 	repo   *repository.CodeRepository
 	smsSvc sms.Service
+}
+
+func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
+	return &CodeService{
+		repo:   repo,
+		smsSvc: smsSvc,
+	}
 }
 
 // Send 发送验证码 biz 区分业务场景
