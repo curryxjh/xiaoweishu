@@ -18,20 +18,25 @@ var (
 	ErrCodeVerifyTooMany = repository.ErrCodeSendTooMany
 )
 
-type CodeService struct {
-	repo   *repository.CodeRepository
+type CodeService interface {
+	Send(ctx context.Context, biz string, phone string) error
+	Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error)
+}
+
+type codeService struct {
+	repo   repository.CodeRepository
 	smsSvc sms.Service
 }
 
-func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
-	return &CodeService{
+func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service) CodeService {
+	return &codeService{
 		repo:   repo,
 		smsSvc: smsSvc,
 	}
 }
 
 // Send 发送验证码 biz 区分业务场景
-func (c *CodeService) Send(ctx context.Context, biz string, phone string) error {
+func (c *codeService) Send(ctx context.Context, biz string, phone string) error {
 	// 生成验证码
 	vcode := c.generateCode()
 	// 放入redis
@@ -49,11 +54,11 @@ func (c *CodeService) Send(ctx context.Context, biz string, phone string) error 
 }
 
 // Verify 验证验证码 biz 区分业务场景
-func (c *CodeService) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
+func (c *codeService) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
 	return c.repo.Verify(ctx, biz, phone, inputCode)
 }
 
-func (c *CodeService) generateCode() string {
+func (c *codeService) generateCode() string {
 	randSeed := rand.New(rand.NewSource(time.Now().UnixNano()))
 	vcode := fmt.Sprintf("%06d", randSeed.Int31n(1000000))
 	return vcode
