@@ -1,7 +1,7 @@
 package web
 
 import (
-	"fmt"
+	"errors"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -259,7 +259,7 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		return
 	}
 	user, err := u.svc.Login(c, req.Email, req.Password)
-	if err == service.ErrInvalidUserOrPassword {
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
 		c.String(http.StatusOK, "用户名/密码错误")
 		return
 	}
@@ -309,28 +309,61 @@ func (u *UserHandler) Logout(c *gin.Context) {
 }
 
 func (u *UserHandler) Edit(c *gin.Context) {
-	c.String(http.StatusOK, "Edit")
+	type EditReq struct {
+		NickName string `json:"nickname"`
+		Birthday string `json:"birthday"`
+		AboutMe  string `json:"about_me"`
+	}
+
+	var req EditReq
+	if err := c.Bind(&req); err != nil {
+		return
+	}
+	if req.NickName == "" {
+		return
+	}
+
 }
 
 func (u *UserHandler) Profile(c *gin.Context) {
-	c.String(http.StatusOK, "Profile")
+	type ProfileReq struct {
+		Email string `json:"email"`
+	}
+	sess := sessions.Default(c)
+	id := sess.Get("userId").(int64)
+	res, err := u.svc.Profile(c, id)
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
+	c.JSON(http.StatusOK, Result{
+		Code: 0,
+		Msg:  "成功",
+		Data: res.Email,
+	})
 }
 
-func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
-	c, ok := ctx.Get("claims")
-	if !ok {
-		ctx.String(http.StatusOK, "系统错误")
+func (u *UserHandler) ProfileJWT(c *gin.Context) {
+	type ProfileResp struct {
+		Email    string `json:"email"`
+		Phone    string `json:"phone"`
+		NicName  string `json:"nicName"`
+		Birthday string `json:"birthday"`
+		AboutMe  string `json:"about_me"`
+	}
+	uc := c.MustGet("user").(UserClaims)
+	res, err := u.svc.Profile(c, uc.Uid)
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
 		return
 	}
-
-	claims, ok := c.(*UserClaims)
-	if !ok {
-		ctx.String(http.StatusOK, "系统错误")
-		return
-	}
-
-	fmt.Println(claims.Uid)
-	ctx.String(http.StatusOK, "Profile")
+	c.JSON(http.StatusOK, ProfileResp{
+		Email:    res.Email,
+		Phone:    res.Phone,
+		NicName:  res.NickName,
+		Birthday: res.Birthday,
+		AboutMe:  res.AboutMe,
+	})
 }
 
 type UserClaims struct {

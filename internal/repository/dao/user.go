@@ -37,6 +37,9 @@ type User struct {
 	Email    sql.NullString `gorm:"unique"`
 	Phone    sql.NullString `gorm:"unique"`
 	Password string
+	NicName  string    `gorm:"type=varchar(128)"`
+	BirthDay time.Time `gorm:"default:null"`
+	AboutMe  string    `gorm:"type=varchar(4096)"`
 
 	Ctime int64 // 创新时间, 毫秒数
 	Utime int64 // 更新时间, 毫秒数

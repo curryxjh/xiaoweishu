@@ -8,5 +8,8 @@ type User struct {
 	Email    string
 	Phone    string
 	Password string
+	NickName string
+	Birthday string
+	AboutMe  string
 	Ctime    time.Time
 }
