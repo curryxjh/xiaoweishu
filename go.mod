@@ -13,6 +13,7 @@ require (
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms v1.1.49
+	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.37.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.30.0

@@ -177,15 +177,15 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	ok, err = u.passwordExp.MatchString(req.Password)
-	if err != nil {
-		c.String(http.StatusOK, "系统错误")
-		log.Println(err)
+	if req.Password != req.ConfirmPassword {
+		c.String(http.StatusOK, "两次输入的密码不一致")
 		return
 	}
 
-	if req.ConfirmPassword != req.ConfirmPassword {
-		c.String(http.StatusOK, "两次输入的密码不一致")
+	ok, err = u.passwordExp.MatchString(req.Password)
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		//log.Println(err)
 		return
 	}
 
