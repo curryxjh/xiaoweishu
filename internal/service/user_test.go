@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
@@ -49,6 +50,45 @@ func Test_userService_Login(t *testing.T) {
 				Ctime:    now,
 			},
 			wantErr: nil,
+		},
+		{
+			name: "用户不存在",
+			mock: func(ctrl *gomock.Controller) repository.UserRepository {
+				userRepo := repomocks.NewMockUserRepository(ctrl)
+				userRepo.EXPECT().FindByEmail(gomock.Any(), "123@qq.com").
+					Return(domain.User{}, ErrInvalidUserOrPassword).Times(1)
+				return userRepo
+			},
+			email:    "123@qq.com",
+			password: "hello@world123",
+			wantUser: domain.User{},
+			wantErr:  ErrInvalidUserOrPassword,
+		},
+		{
+			name: "系统错误",
+			mock: func(ctrl *gomock.Controller) repository.UserRepository {
+				userRepo := repomocks.NewMockUserRepository(ctrl)
+				userRepo.EXPECT().FindByEmail(gomock.Any(), "1234@qq.com").
+					Return(domain.User{}, errors.New("mock 错误")).Times(1)
+				return userRepo
+			},
+			email:    "1234@qq.com",
+			password: "hello@world123",
+			wantUser: domain.User{},
+			wantErr:  errors.New("mock 错误"),
+		},
+		{
+			name: "密码错误",
+			mock: func(ctrl *gomock.Controller) repository.UserRepository {
+				userRepo := repomocks.NewMockUserRepository(ctrl)
+				userRepo.EXPECT().FindByEmail(gomock.Any(), "1234@qq.com").
+					Return(domain.User{}, ErrInvalidUserOrPassword).Times(1)
+				return userRepo
+			},
+			email:    "1234@qq.com",
+			password: "helloworld123",
+			wantUser: domain.User{},
+			wantErr:  ErrInvalidUserOrPassword,
 		},
 	}
 
