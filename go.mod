@@ -3,6 +3,7 @@ module xiaoweishu
 go 1.24
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-contrib/sessions v1.0.4
