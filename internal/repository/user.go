@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"time"
 	"xiaoweishu/internal/domain"
 	"xiaoweishu/internal/repository/cache"
@@ -54,19 +53,47 @@ func (r *CachedUserRepository) FindByPhone(ctx context.Context, phone string) (d
 	return r.entityToDomain(u), err
 }
 
+// 非异步
+//func (r *CachedUserRepository) FindById(ctx context.Context, id int64) (domain.User, error) {
+//	u, err := r.cache.Get(ctx, id)
+//	if err == nil {
+//		return u, nil
+//	}
+//	//if errors.Is(err, cache.ErrKeyNotFound) {
+//	//	// 去数据库找
+//	//}
+//	ue, err := r.dao.FindById(ctx, id)
+//	if err != nil {
+//		return domain.User{}, err
+//	}
+//	u = r.entityToDomain(ue)
+//	_ = r.cache.Set(ctx, u)
+//	//go func() {
+//	//	err = r.cache.Set(ctx, u)
+//	//	if err != nil {
+//	//		//return domain.User{}, err
+//	//		// ignore cache error
+//	//		// 打日志，记录缓存失败
+//	//	}
+//	//}()
+//	return u, nil
+//}
+
+// 异步
 func (r *CachedUserRepository) FindById(ctx context.Context, id int64) (domain.User, error) {
 	u, err := r.cache.Get(ctx, id)
 	if err == nil {
 		return u, nil
 	}
-	if errors.Is(err, cache.ErrKeyNotFound) {
-		// 去数据库找
-	}
+	//if errors.Is(err, cache.ErrKeyNotFound) {
+	//	// 去数据库找
+	//}
 	ue, err := r.dao.FindById(ctx, id)
 	if err != nil {
 		return domain.User{}, err
 	}
 	u = r.entityToDomain(ue)
+
 	go func() {
 		err = r.cache.Set(ctx, u)
 		if err != nil {
@@ -84,6 +111,9 @@ func (r *CachedUserRepository) entityToDomain(u dao.User) domain.User {
 		Email:    u.Email.String,
 		Phone:    u.Phone.String,
 		Password: u.Password,
+		NickName: u.NicName,
+		Birthday: u.BirthDay.String(),
+		AboutMe:  u.AboutMe,
 		Ctime:    time.UnixMilli(u.Ctime),
 	}
 }
