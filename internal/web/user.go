@@ -44,6 +44,7 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/signup", u.SignUp)
 	//ug.POST("/login", u.LogIn)
 	ug.POST("/login", u.LogInJWT)
+	ug.POST("login_sms", u.LoginSMS)
 	ug.POST("/edit", u.Edit)
 	//ug.GET("/profile", u.Profile)
 	ug.GET("/profile", u.ProfileJWT)
@@ -273,6 +274,37 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		return
 	}
 
+	c.String(http.StatusOK, "登录成功")
+	return
+}
+
+func (u *UserHandler) LoginSMS(c *gin.Context) {
+	type SmsLoginReq struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	var req SmsLoginReq
+	if err := c.Bind(&req); err != nil {
+		return
+	}
+	ok, err := u.codeSvc.Verify(c, biz, req.Phone, req.Code)
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
+	if !ok {
+		c.String(http.StatusOK, "手机号/验证码错误")
+		return
+	}
+	user, err := u.svc.FindOrCreate(c, req.Phone)
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
+	if err := u.SetJWTToken(c, user.Id); err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
 	c.String(http.StatusOK, "登录成功")
 	return
 }
