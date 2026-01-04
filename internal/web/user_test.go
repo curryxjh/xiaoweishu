@@ -235,6 +235,25 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 				Msg:  "参数错误",
 			},
 		},
+		{
+			name: "系统错误",
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+				svc := svcmocks.NewMockUserService(ctrl)
+				codeSvc := svcmocks.NewMockCodeService(ctrl)
+				return svc, codeSvc
+			},
+			reqBody: `
+{
+	"phone":"101,
+	"code":"123456"
+}
+`,
+			wantCode: http.StatusBadRequest,
+			wantBody: ginx.Result{
+				Code: http.StatusBadRequest,
+				Msg:  "参数错误",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
