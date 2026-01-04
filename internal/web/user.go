@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 	"xiaoweishu/internal/domain"
+	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service"
 )
 
@@ -65,7 +66,7 @@ func (u *UserHandler) SendLoginSMSCode(c *gin.Context) {
 	// 校验是否是合法手机号
 	// 可以使用正则表达式
 	if req.Phone == "" {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "手机号不能为空",
 			Data: nil,
@@ -75,19 +76,19 @@ func (u *UserHandler) SendLoginSMSCode(c *gin.Context) {
 	err := u.codeSvc.Send(c, biz, req.Phone)
 	switch err {
 	case nil:
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Msg:  "短信发送成功",
 			Data: nil,
 		})
 		return
 	case service.ErrCodeSendTooMany:
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 4,
 			Msg:  "短信发送太频繁，请稍后再试",
 			Data: nil,
 		})
 	default:
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 			Data: nil,
@@ -104,7 +105,7 @@ func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
 	}
 	var req Req
 	if err := c.Bind(&req); err != nil {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "参数错误",
 			Data: nil,
@@ -113,7 +114,7 @@ func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
 	}
 	ok, err := u.codeSvc.Verify(c, biz, req.Phone, req.Code)
 	if err != nil {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 			Data: nil,
@@ -121,7 +122,7 @@ func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 4,
 			Msg:  "短信验证失败",
 			Data: nil,
@@ -130,21 +131,21 @@ func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
 	}
 	user, err := u.svc.FindOrCreate(c, req.Phone)
 	if err != nil {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Msg:  "系统错误",
 			Data: nil,
 		})
 		return
 	}
 	if err := u.SetJWTToken(c, user.Id); err != nil {
-		c.JSON(http.StatusOK, Result{
+		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 			Data: nil,
 		})
 		return
 	}
-	c.JSON(http.StatusOK, Result{
+	c.JSON(http.StatusOK, ginx.Result{
 		Code: 4,
 		Msg:  "短信验证成功",
 		Data: nil,
@@ -285,27 +286,52 @@ func (u *UserHandler) LoginSMS(c *gin.Context) {
 	}
 	var req SmsLoginReq
 	if err := c.Bind(&req); err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusBadRequest,
+			Msg:  "参数错误",
+			Data: nil,
+		})
 		return
 	}
 	ok, err := u.codeSvc.Verify(c, biz, req.Phone, req.Code)
 	if err != nil {
-		c.String(http.StatusOK, "系统错误")
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+			Data: nil,
+		})
 		return
 	}
 	if !ok {
-		c.String(http.StatusOK, "手机号/验证码错误")
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusUnauthorized,
+			Msg:  "手机号/验证码错误",
+			Data: nil,
+		})
 		return
 	}
 	user, err := u.svc.FindOrCreate(c, req.Phone)
 	if err != nil {
-		c.String(http.StatusOK, "系统错误")
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+			Data: nil,
+		})
 		return
 	}
 	if err := u.SetJWTToken(c, user.Id); err != nil {
-		c.String(http.StatusOK, "系统错误")
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+			Data: nil,
+		})
 		return
 	}
-	c.String(http.StatusOK, "登录成功")
+	c.JSON(http.StatusOK, ginx.Result{
+		Code: http.StatusOK,
+		Msg:  "短信验证成功",
+		Data: nil,
+	})
 	return
 }
 
@@ -368,7 +394,7 @@ func (u *UserHandler) Profile(c *gin.Context) {
 		c.String(http.StatusOK, "系统错误")
 		return
 	}
-	c.JSON(http.StatusOK, Result{
+	c.JSON(http.StatusOK, ginx.Result{
 		Code: 0,
 		Msg:  "成功",
 		Data: res.Email,

@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"xiaoweishu/internal/domain"
+	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service"
 	svcmocks "xiaoweishu/internal/service/mocks"
 )
@@ -179,7 +182,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 	}
 }
 
-// todo 补全测试用例
+// todo 未完成，需要修复
 func TestUserHandler_LoginSMS(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -188,9 +191,31 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 		reqBody string
 		// 输出
 		wantCode int
-		wantBody string
+		wantBody ginx.Result
 	}{
-		{},
+		{
+			name: "登陆成功",
+			mock: func(ctrl *gomock.Controller) service.CodeService {
+				svc := svcmocks.NewMockUserService(ctrl)
+				codeSvc := svcmocks.NewMockCodeService(ctrl)
+				codeSvc.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(true, nil).Times(1)
+				svc.EXPECT().FindOrCreate(gomock.Any(), gomock.Any()).Return(&domain.User{
+					Id: 1,
+				}, nil).Times(1)
+				return codeSvc
+			},
+			reqBody: `
+{
+	"phone":"123456789",
+	"code":"123456"
+}
+`,
+			wantCode: http.StatusOK,
+			wantBody: ginx.Result{
+				Code: http.StatusOK,
+				Msg:  "短信验证成功",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -202,15 +227,17 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 			h := NewUserHandler(nil, tc.mock(ctrl))
 			h.RegisterRoutes(server)
 
-			req, err := http.NewRequest(http.MethodPost, "/users/login/sms", bytes.NewBuffer([]byte(tc.reqBody)))
+			req, err := http.NewRequest(http.MethodPost, "/users/login_sms", bytes.NewBuffer([]byte(tc.reqBody)))
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
 
 			resp := httptest.NewRecorder()
-
 			server.ServeHTTP(resp, req)
-
 			assert.Equal(t, tc.wantCode, resp.Code)
+			var res ginx.Result
+			err = json.NewDecoder(resp.Body).Decode(&res)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantBody, res)
 		})
 	}
 }
