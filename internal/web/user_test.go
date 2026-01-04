@@ -186,7 +186,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 func TestUserHandler_LoginSMS(t *testing.T) {
 	testCases := []struct {
 		name string
-		mock func(ctrl *gomock.Controller) service.CodeService
+		mock func(ctrl *gomock.Controller) (service.UserService, service.CodeService)
 		// 输入
 		reqBody string
 		// 输出
@@ -195,18 +195,18 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 	}{
 		{
 			name: "登陆成功",
-			mock: func(ctrl *gomock.Controller) service.CodeService {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
 				svc := svcmocks.NewMockUserService(ctrl)
 				codeSvc := svcmocks.NewMockCodeService(ctrl)
-				codeSvc.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(true, nil).Times(1)
-				svc.EXPECT().FindOrCreate(gomock.Any(), gomock.Any()).Return(&domain.User{
-					Id: 1,
+				codeSvc.EXPECT().Verify(gomock.Any(), biz, gomock.Any(), "123456").Return(true, nil).Times(1)
+				svc.EXPECT().FindOrCreate(gomock.Any(), "12345678901").Return(domain.User{
+					Phone: "12345678901",
 				}, nil).Times(1)
-				return codeSvc
+				return svc, codeSvc
 			},
 			reqBody: `
 {
-	"phone":"123456789",
+	"phone":"12345678901",
 	"code":"123456"
 }
 `,
@@ -214,6 +214,44 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 			wantBody: ginx.Result{
 				Code: http.StatusOK,
 				Msg:  "短信验证成功",
+			},
+		},
+		{
+			name: "参数错误",
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+				svc := svcmocks.NewMockUserService(ctrl)
+				codeSvc := svcmocks.NewMockCodeService(ctrl)
+				return svc, codeSvc
+			},
+			reqBody: `
+{
+	"phone":"101,
+	"code":"123456"
+}
+`,
+			wantCode: http.StatusBadRequest,
+			wantBody: ginx.Result{
+				Code: http.StatusBadRequest,
+				Msg:  "参数错误",
+			},
+		},
+		{
+			name: "系统错误",
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+				svc := svcmocks.NewMockUserService(ctrl)
+				codeSvc := svcmocks.NewMockCodeService(ctrl)
+				return svc, codeSvc
+			},
+			reqBody: `
+{
+	"phone":"101,
+	"code":"123456"
+}
+`,
+			wantCode: http.StatusBadRequest,
+			wantBody: ginx.Result{
+				Code: http.StatusBadRequest,
+				Msg:  "参数错误",
 			},
 		},
 	}
@@ -224,7 +262,7 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 			defer ctrl.Finish()
 
 			server := gin.Default()
-			h := NewUserHandler(nil, tc.mock(ctrl))
+			h := NewUserHandler(tc.mock(ctrl))
 			h.RegisterRoutes(server)
 
 			req, err := http.NewRequest(http.MethodPost, "/users/login_sms", bytes.NewBuffer([]byte(tc.reqBody)))
