@@ -178,3 +178,39 @@ func TestUserHandler_SignUp(t *testing.T) {
 		})
 	}
 }
+
+// todo 补全测试用例
+func TestUserHandler_LoginSMS(t *testing.T) {
+	testCases := []struct {
+		name string
+		mock func(ctrl *gomock.Controller) service.CodeService
+		// 输入
+		reqBody string
+		// 输出
+		wantCode int
+		wantBody string
+	}{
+		{},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			server := gin.Default()
+			h := NewUserHandler(nil, tc.mock(ctrl))
+			h.RegisterRoutes(server)
+
+			req, err := http.NewRequest(http.MethodPost, "/users/login/sms", bytes.NewBuffer([]byte(tc.reqBody)))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp := httptest.NewRecorder()
+
+			server.ServeHTTP(resp, req)
+
+			assert.Equal(t, tc.wantCode, resp.Code)
+		})
+	}
+}
