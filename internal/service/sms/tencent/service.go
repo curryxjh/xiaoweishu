@@ -3,21 +3,25 @@ package tencent
 import (
 	"context"
 	"fmt"
-	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
+	"xiaoweishu/internal/pkg/ratelimit"
 	mysms "xiaoweishu/internal/service/sms"
+
+	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
 )
 
 type Service struct {
 	appId    *string
 	signName *string
 	client   *sms.Client
+	limiter  ratelimit.Limiter
 }
 
-func NewService(client *sms.Client, appId, signName string) *Service {
+func NewService(client *sms.Client, appId, signName string, limiter ratelimit.Limiter) *Service {
 	return &Service{
 		appId:    &appId,
 		signName: &signName,
 		client:   client,
+		limiter:  limiter,
 	}
 }
 
