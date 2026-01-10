@@ -8,5 +8,6 @@ type NameArg struct {
 }
 
 type Service interface {
-	Send(ctx context.Context, tpl string, args []NameArg, numbers ...string) error
+	// Send 发送短信 biz 含糊的业务
+	Send(ctx context.Context, biz string, args []NameArg, numbers ...string) error
 }

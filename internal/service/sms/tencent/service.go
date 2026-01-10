@@ -25,11 +25,12 @@ func NewService(client *sms.Client, appId, signName string, limiter ratelimit.Li
 	}
 }
 
-func (s *Service) Send(ctx context.Context, tpl string, args []mysms.NameArg, numbers ...string) error {
+// biz 代表的就是templateID
+func (s *Service) Send(ctx context.Context, biz string, args []mysms.NameArg, numbers ...string) error {
 	req := sms.NewSendSmsRequest()
 	req.SenderId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = &tpl
+	req.TemplateId = &biz
 	req.PhoneNumberSet = s.toStringPtrSlice(numbers)
 	req.TemplateParamSet = s.toNameArgPtrSlice(args)
 	resp, err := s.client.SendSms(req)
