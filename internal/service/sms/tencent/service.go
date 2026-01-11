@@ -3,6 +3,7 @@ package tencent
 import (
 	"context"
 	"fmt"
+	"xiaoweishu/internal/pkg/ekit"
 	"xiaoweishu/internal/pkg/ratelimit"
 	mysms "xiaoweishu/internal/service/sms"
 
@@ -30,7 +31,7 @@ func (s *Service) Send(ctx context.Context, biz string, args []mysms.NameArg, nu
 	req := sms.NewSendSmsRequest()
 	req.SenderId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = &biz
+	req.TemplateId = ekit.ToPtr(biz)
 	req.PhoneNumberSet = s.toStringPtrSlice(numbers)
 	req.TemplateParamSet = s.toNameArgPtrSlice(args)
 	resp, err := s.client.SendSms(req)
