@@ -11,10 +11,11 @@ import (
 	"xiaoweishu/internal/web/middleware"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Hdl *web.Oauth2WechatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
 	userHdl.RegisterRoutes(server)
+	oauth2Hdl.RegisterRoutes(server)
 	return server
 }
 
@@ -26,6 +27,7 @@ func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/signup").
 			IgnorePaths("/users/sms/login/send").
+			IgnorePaths("/oauth2/wechat/authurl").
 			IgnorePaths("/users/sms/login/verify").Build(),
 	}
 }
