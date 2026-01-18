@@ -18,6 +18,7 @@ type UserService interface {
 	Login(ctx context.Context, email, password string) (domain.User, error)
 	Profile(ctx context.Context, id int64) (domain.User, error)
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
+	FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error)
 }
 
 type userService struct {
@@ -76,4 +77,24 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 	}
 	// 此处会遇到主从延迟的问题，如果真的遇到，只能改 svc.repo.Create 方法，让它返回 id
 	return svc.repo.FindByPhone(ctx, phone)
+}
+
+func (svc *userService) FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error) {
+	u, err := svc.repo.FindByWechat(ctx, wechatInfo.OpenID)
+	// 快路径
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		// nil 会进入这里
+		// 不为 ErrUserNotFound， 也会进来这里
+		return domain.User{}, err
+		// 不存在，创建一个
+	}
+	u = domain.User{
+		WechatInfo: wechatInfo,
+	}
+	err = svc.repo.Create(ctx, u)
+	if err != nil && !errors.Is(err, ErrUserDuplicate) {
+		return u, err
+	}
+	// 此处会遇到主从延迟的问题，如果真的遇到，只能改 svc.repo.Create 方法，让它返回 id
+	return svc.repo.FindByWechat(ctx, wechatInfo.OpenID)
 }

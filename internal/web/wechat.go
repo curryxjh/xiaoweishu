@@ -5,16 +5,20 @@ import (
 	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
 	"xiaoweishu/internal/pkg/ginx"
+	"xiaoweishu/internal/service"
 	"xiaoweishu/internal/service/oauth2/wechat"
 )
 
 type Oauth2WechatHandler struct {
-	svc wechat.Service
+	svc     wechat.Service
+	userSvc service.UserService
+	jwtHandler
 }
 
-func NewOauth2WechatHandler(svc wechat.Service) *Oauth2WechatHandler {
+func NewOauth2WechatHandler(svc wechat.Service, userSvc service.UserService) *Oauth2WechatHandler {
 	return &Oauth2WechatHandler{
-		svc: svc,
+		svc:     svc,
+		userSvc: userSvc,
 	}
 }
 
@@ -47,6 +51,20 @@ func (h *Oauth2WechatHandler) Callback(c *gin.Context) {
 	}
 	info, err := h.svc.VerifyCode(c, code)
 	if err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+		})
+	}
+	// 这里需要设置为登录态, 需要 set token, 还需要拿到 uid
+	u, err := h.userSvc.FindOrCreateByWechat(c, info)
+	if err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+		})
+	}
+	if err := h.SetJWTToken(c, u.Id); err != nil {
 		c.JSON(http.StatusOK, ginx.Result{
 			Code: http.StatusInternalServerError,
 			Msg:  "系统错误",
