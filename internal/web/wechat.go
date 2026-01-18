@@ -2,7 +2,7 @@ package web
 
 import (
 	"github.com/gin-gonic/gin"
-	uuid "gith
+	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service/oauth2/wechat"
@@ -37,5 +37,28 @@ func (h *Oauth2WechatHandler) AuthURL(c *gin.Context) {
 }
 
 func (h *Oauth2WechatHandler) Callback(c *gin.Context) {
+	code := c.Query("code")
+	err := h.verifyState(c)
+	if err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "登陆失败",
+		})
+	}
+	info, err := h.svc.VerifyCode(c, code)
+	if err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: http.StatusInternalServerError,
+			Msg:  "系统错误",
+		})
+	}
 
+	c.JSON(http.StatusOK, ginx.Result{
+		Code: http.StatusOK,
+		Data: info,
+	})
+}
+
+func (h *Oauth2WechatHandler) verifyState(c *gin.Context) error {
+	return nil
 }
