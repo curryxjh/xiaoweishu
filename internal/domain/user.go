@@ -11,5 +11,7 @@ type User struct {
 	NickName string
 	Birthday string
 	AboutMe  string
-	Ctime    time.Time
+	// 防止以后有dingding 等第三方登录
+	WechatInfo WechatInfo
+	Ctime      time.Time
 }
