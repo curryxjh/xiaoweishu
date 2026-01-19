@@ -9,6 +9,10 @@ import (
 type jwtHandler struct {
 }
 
+func NewJWTHandler() jwtHandler {
+	return jwtHandler{}
+}
+
 type UserClaims struct {
 	jwt.RegisteredClaims
 	// 声明自己要放进 token 的数据
