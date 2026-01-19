@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+var (
+	AccessTokenKey  = []byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy")
+	RefreshTokenKey = []byte("KntcTH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8JCSpmwPjFy")
+)
+
 type jwtHandler struct {
 }
 
@@ -21,6 +26,11 @@ type UserClaims struct {
 	UserAgent string
 }
 
+type RefreshClaims struct {
+	jwt.RegisteredClaims
+	Uid int64
+}
+
 func (h jwtHandler) SetJWTToken(c *gin.Context, uid int64) error {
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -34,10 +44,27 @@ func (h jwtHandler) SetJWTToken(c *gin.Context, uid int64) error {
 	// 生成一个 JWT
 	//token := jwt.New(jwt.SigningMethodHS512)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
+	tokenStr, err := token.SignedString(AccessTokenKey)
 	if err != nil {
 		return err
 	}
 	c.Header("x-jwt-token", tokenStr)
+	return nil
+}
+
+func (h jwtHandler) SetRefreshToken(c *gin.Context, uid int64) error {
+	claims := RefreshClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),
+		},
+		Uid: uid,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString(RefreshTokenKey)
+	if err != nil {
+		return err
+	}
+	c.Header("x-refresh-token", tokenStr)
 	return nil
 }
