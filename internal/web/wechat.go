@@ -3,14 +3,16 @@ package web
 import (
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
 	"time"
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service"
 	"xiaoweishu/internal/service/oauth2/wechat"
+	ijwt "xiaoweishu/internal/web/jwt"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	uuid "github.com/lithammer/shortuuid/v4"
 )
 
 type WechatHandlerConfig struct {
@@ -20,18 +22,18 @@ type WechatHandlerConfig struct {
 type Oauth2WechatHandler struct {
 	svc     wechat.Service
 	userSvc service.UserService
-	jwtHandler
+	ijwt.Handler
 	stateKey []byte
 	cfg      WechatHandlerConfig
 }
 
-func NewOauth2WechatHandler(svc wechat.Service, userSvc service.UserService, cfg WechatHandlerConfig, jwtHdl jwtHandler) *Oauth2WechatHandler {
+func NewOauth2WechatHandler(svc wechat.Service, userSvc service.UserService, cfg WechatHandlerConfig, jwtHdl ijwt.Handler) *Oauth2WechatHandler {
 	return &Oauth2WechatHandler{
-		svc:        svc,
-		userSvc:    userSvc,
-		stateKey:   []byte("KntbYH88cXJHKDRdFrXrQjh5yZp7c5QQXKh3MXJHwYFnt2v43wGCy2d8XCSpmwPjFy"),
-		cfg:        cfg,
-		jwtHandler: jwtHdl,
+		svc:      svc,
+		userSvc:  userSvc,
+		stateKey: []byte("KntbYH88cXJHKDRdFrXrQjh5yZp7c5QQXKh3MXJHwYFnt2v43wGCy2d8XCSpmwPjFy"),
+		cfg:      cfg,
+		Handler:  jwtHdl,
 	}
 }
 
@@ -85,11 +87,13 @@ func (h *Oauth2WechatHandler) Callback(c *gin.Context) {
 			Msg:  "系统错误",
 		})
 	}
-	if err := h.SetJWTToken(c, u.Id); err != nil {
+
+	if err := h.SetLoginToken(c, u.Id); err != nil {
 		c.JSON(http.StatusOK, ginx.Result{
 			Code: http.StatusInternalServerError,
 			Msg:  "系统错误",
 		})
+		return
 	}
 
 	c.JSON(http.StatusOK, ginx.Result{

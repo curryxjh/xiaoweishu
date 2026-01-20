@@ -1,22 +1,23 @@
 package middleware
 
 import (
+	"net/http"
+	ijwt "xiaoweishu/internal/web/jwt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"log"
-	"net/http"
-	"strings"
-	"time"
-	"xiaoweishu/internal/web"
 )
 
 // LoginJWTMiddlewareBuilder JWT登录校验
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
-	return &LoginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(jwtHdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		Handler: jwtHdl,
+	}
 }
 
 func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddlewareBuilder {
@@ -32,17 +33,9 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			}
 		}
 		// 使用 JWT 校验
-		tokenHeader := c.GetHeader("Authorization")
-		if tokenHeader == "" {
-			// 未登录
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		segs := strings.SplitN(tokenHeader, " ", 2)
+		tokenStr := l.ExtractToken(c)
 
-		tokenStr := segs[1]
-
-		claims := &web.UserClaims{}
+		claims := &ijwt.UserClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("KntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"), nil
@@ -70,16 +63,22 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 
-		// 每10s刷新一次
-		now := time.Now()
-		if claims.ExpiresAt.Sub(now) < time.Second*50 {
-			claims.ExpiresAt = jwt.NewNumericDate(now.Add(time.Minute))
-			tokenStr, err := token.SignedString([]byte("ntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
-			if err != nil {
-				log.Println("jwt 续约失败  ", err)
-			}
-			c.Header("x-jwt-token", tokenStr)
+		err = l.CheckSession(c, claims.Ssid)
+		if err != nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
 		}
+
+		//// 每10s刷新一次
+		//now := time.Now()
+		//if claims.ExpiresAt.Sub(now) < time.Second*50 {
+		//	claims.ExpiresAt = jwt.NewNumericDate(now.Add(time.Minute))
+		//	tokenStr, err := token.SignedString([]byte("ntbYH88cXPKDRdFrXrQjh5yZpA7c5QQXKh3MHwYFnt2v43wGCy2d8XCSpmwPjFy"))
+		//	if err != nil {
+		//		log.Println("jwt 续约失败  ", err)
+		//	}
+		//	c.Header("x-jwt-token", tokenStr)
+		//}
 		c.Set("claims", claims)
 	}
 }
