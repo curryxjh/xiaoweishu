@@ -5,6 +5,7 @@ import (
 	"time"
 	"xiaoweishu/internal/pkg/ginx/middlewares/ratelimit"
 	"xiaoweishu/internal/web"
+	ijwt "xiaoweishu/internal/web/jwt"
 	"xiaoweishu/internal/web/middleware"
 
 	"github.com/gin-contrib/cors"
@@ -20,13 +21,14 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Hdl *
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHdl(),
 		ratelimit.NewBuilder(NewRateLimiter(redisClient, time.Second, 100)).Build(),
-		middleware.NewLoginJWTMiddlewareBuilder().
+		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/signup").
+			IgnorePaths("/users/refresh_token").
 			IgnorePaths("/users/sms/login/send").
 			IgnorePaths("/oauth2/wechat/authurl").
 			IgnorePaths("oauth2/wechat/callback").
@@ -40,7 +42,7 @@ func corsHdl() gin.HandlerFunc {
 		//AllowMethods: []string{},
 		AllowHeaders: []string{"authorization", "Content-Type"},
 		//
-		ExposeHeaders: []string{"x-jwt-token"},
+		ExposeHeaders: []string{"x-jwt-token", "x-refresh-token"},
 		// 是否允许携带用户认证信息，如cookie
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {

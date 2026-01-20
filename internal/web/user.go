@@ -2,14 +2,19 @@ package web
 
 import (
 	"errors"
-	regexp "github.com/dlclark/regexp2"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"xiaoweishu/internal/domain"
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service"
+
+	regexp "github.com/dlclark/regexp2"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
+
+	ijwt "xiaoweishu/internal/web/jwt"
 )
 
 const biz = "login"
@@ -22,10 +27,10 @@ type UserHandler struct {
 	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
-	jwtHandler
+	ijwt.Handler
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, cmd redis.Cmdable) *UserHandler {
 	const (
 		emailRegexPattern    = `^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$`
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
@@ -36,6 +41,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		codeSvc:     codeSvc,
 		emailExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
+		Handler:     ijwt.NewRedisJwtHandler(cmd),
 	}
 }
 
@@ -47,9 +53,12 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("login_sms", u.LoginSMS)
 	ug.POST("/edit", u.Edit)
 	//ug.GET("/profile", u.Profile)
+	//ug.POST("/logout", u.Logout)
+	ug.POST("/logout", u.LogoutJWT)
 	ug.GET("/profile", u.ProfileJWT)
 	ug.POST("/sms/login/send", u.SendLoginSMSCode)
 	ug.POST("/sms/login/verify", u.VerifyLoginSMSCode)
+	ug.POST("/refresh_token", u.RefreshToekn)
 }
 
 func (u *UserHandler) SendLoginSMSCode(c *gin.Context) {
@@ -136,7 +145,7 @@ func (u *UserHandler) VerifyLoginSMSCode(c *gin.Context) {
 		})
 		return
 	}
-	if err := u.SetJWTToken(c, user.Id); err != nil {
+	if err := u.SetLoginToken(c, user.Id); err != nil {
 		c.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
@@ -269,11 +278,14 @@ func (u *UserHandler) LogInJWT(c *gin.Context) {
 		return
 	}
 
-	if err := u.SetJWTToken(c, user.Id); err != nil {
-		c.String(http.StatusOK, "系统错误")
+	if err := u.SetLoginToken(c, user.Id); err != nil {
+		c.JSON(http.StatusOK, ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+			Data: nil,
+		})
 		return
 	}
-
 	c.String(http.StatusOK, "登录成功")
 	return
 }
@@ -318,14 +330,16 @@ func (u *UserHandler) LoginSMS(c *gin.Context) {
 		})
 		return
 	}
-	if err := u.SetJWTToken(c, user.Id); err != nil {
+
+	if err := u.SetLoginToken(c, user.Id); err != nil {
 		c.JSON(http.StatusOK, ginx.Result{
-			Code: http.StatusInternalServerError,
+			Code: 5,
 			Msg:  "系统错误",
 			Data: nil,
 		})
 		return
 	}
+
 	c.JSON(http.StatusOK, ginx.Result{
 		Code: http.StatusOK,
 		Msg:  "短信验证成功",
@@ -342,6 +356,21 @@ func (u *UserHandler) Logout(c *gin.Context) {
 	sess.Save()
 
 	c.String(http.StatusOK, "退出登录成功")
+}
+
+func (u *UserHandler) LogoutJWT(c *gin.Context) {
+	err := u.ClearToken(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, ginx.Result{
+		Code: 0,
+		Msg:  "退出登录成功",
+	})
 }
 
 func (u *UserHandler) Edit(c *gin.Context) {
@@ -387,7 +416,7 @@ func (u *UserHandler) ProfileJWT(c *gin.Context) {
 		Birthday string `json:"birthday"`
 		AboutMe  string `json:"about_me"`
 	}
-	uc := c.MustGet("user").(UserClaims)
+	uc := c.MustGet("claims").(*ijwt.UserClaims)
 	res, err := u.svc.Profile(c, uc.Uid)
 	if err != nil {
 		c.String(http.StatusOK, "系统错误")
@@ -399,5 +428,34 @@ func (u *UserHandler) ProfileJWT(c *gin.Context) {
 		NicName:  res.NickName,
 		Birthday: res.Birthday,
 		AboutMe:  res.AboutMe,
+	})
+}
+
+func (u *UserHandler) RefreshToekn(c *gin.Context) {
+	// 只有这个接口, 拿出来的才是 refresh-token, 其余的都是 access-token
+	refresh_token := u.ExtractToken(c)
+	var rc ijwt.RefreshClaims
+	token, err := jwt.ParseWithClaims(refresh_token, &rc, func(token *jwt.Token) (interface{}, error) {
+		return ijwt.RefreshTokenKey, nil
+	})
+	if err != nil {
+	}
+	if err != nil || !token.Valid {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	err = u.CheckSession(c, rc.Ssid)
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	if err := u.SetJwtToken(c, rc.Uid, rc.Ssid); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	c.JSON(http.StatusOK, ginx.Result{
+		Msg: "success",
 	})
 }

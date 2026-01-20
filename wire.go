@@ -3,14 +3,16 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/wire"
 	"xiaoweishu/internal/repository"
 	"xiaoweishu/internal/repository/cache"
 	"xiaoweishu/internal/repository/dao"
 	"xiaoweishu/internal/service"
 	"xiaoweishu/internal/web"
+	ijwt "xiaoweishu/internal/web/jwt"
 	"xiaoweishu/ioc"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/wire"
 )
 
 func InitWebServer() *gin.Engine {
@@ -33,8 +35,8 @@ func InitWebServer() *gin.Engine {
 		ioc.InitOauth2WechatService,
 
 		// Handler
+		ijwt.NewRedisJwtHandler,
 		web.NewUserHandler,
-		web.NewJWTHandler,
 		ioc.NewWechatHandlerConfig,
 		web.NewOauth2WechatHandler,
 
