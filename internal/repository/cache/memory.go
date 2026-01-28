@@ -48,6 +48,7 @@ func (l *LocalCodeCache) Set(ctx context.Context, biz, phone, code string) error
 	if !ok {
 		return errors.New("server error")
 	}
+	// 限制 1min 内不能频繁发送
 	if item.expire.Sub(now) > time.Minute*9 {
 		return ErrCodeSendTooMany
 	}
