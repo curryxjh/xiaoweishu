@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	ijwt "xiaoweishu/internal/web/jwt"
 )
@@ -311,6 +312,7 @@ func (u *UserHandler) LoginSMS(c *gin.Context) {
 			Msg:  "系统错误",
 			Data: nil,
 		})
+		zap.L().Error("短信验证失败", zap.Error(err))
 		return
 	}
 	if !ok {
@@ -453,6 +455,7 @@ func (u *UserHandler) RefreshToekn(c *gin.Context) {
 
 	if err := u.SetJwtToken(c, rc.Uid, rc.Ssid); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
+		zap.L().Error("设置 JWT token 出现错误", zap.Error(err))
 		return
 	}
 	c.JSON(http.StatusOK, ginx.Result{
