@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"xiaoweishu/internal/domain"
+	"xiaoweishu/internal/pkg/logger"
 )
 
 var redirectURI = url.PathEscape("https://wxw.xiaoweishu.com/oauth2/wechat/callback")
@@ -17,11 +18,12 @@ type Service interface {
 	VerifyCode(ctx context.Context, code string) (domain.WechatInfo, error)
 }
 
-func NewService(appID, appSecret string) Service {
+func NewService(appID, appSecret string, l logger.LoggerV1) Service {
 	return &service{
 		appID:     appID,
 		appSecret: appSecret,
 		client:    http.DefaultClient,
+		l:         l,
 	}
 }
 
@@ -29,6 +31,7 @@ type service struct {
 	appID     string
 	appSecret string
 	client    *http.Client
+	l         logger.LoggerV1
 }
 
 func (s *service) AuthUrl(ctx context.Context, state string) (string, error) {

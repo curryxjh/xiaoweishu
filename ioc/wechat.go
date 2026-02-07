@@ -2,11 +2,12 @@ package ioc
 
 import (
 	"os"
+	"xiaoweishu/internal/pkg/logger"
 	"xiaoweishu/internal/service/oauth2/wechat"
 	"xiaoweishu/internal/web"
 )
 
-func InitOauth2WechatService() wechat.Service {
+func InitOauth2WechatService(l logger.LoggerV1) wechat.Service {
 	appID, ok := os.LookupEnv("WECHAT_APPID")
 	if !ok {
 		panic("WECHAT_APPID not found")
@@ -15,7 +16,7 @@ func InitOauth2WechatService() wechat.Service {
 	if !ok {
 		panic("WECHAT_APPSECRET not found")
 	}
-	return wechat.NewService(appID, appSecret)
+	return wechat.NewService(appID, appSecret, l)
 }
 
 func NewWechatHandlerConfig() web.WechatHandlerConfig {

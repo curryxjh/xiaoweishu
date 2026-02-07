@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"golang.org/x/crypto/bcrypt"
 	"xiaoweishu/internal/domain"
+	"xiaoweishu/internal/pkg/logger"
 	"xiaoweishu/internal/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -23,10 +25,14 @@ type UserService interface {
 
 type userService struct {
 	repo repository.UserRepository
+	l    logger.LoggerV1
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, l logger.LoggerV1) UserService {
+	return &userService{
+		repo: repo,
+		l:    l,
+	}
 }
 
 func (svc *userService) SignUp(ctx context.Context, user domain.User) error {
