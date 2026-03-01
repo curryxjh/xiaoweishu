@@ -65,7 +65,6 @@ func (l *LoggerMiddlewareBuilder) Build() gin.HandlerFunc {
 			// 比较消耗 CPU 和内存的操作
 			// 会引起复制
 			al.ReqBody = string(body)
-
 		}
 		if l.allowRespBody.Load() {
 			c.Writer = responseWriter{al: al, ResponseWriter: c.Writer}
