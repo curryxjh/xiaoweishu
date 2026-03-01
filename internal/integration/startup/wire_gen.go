@@ -38,7 +38,8 @@ func InitWebServer() *gin.Engine {
 	wechatService := ioc.InitOauth2WechatService(loggerV1)
 	wechatHandlerConfig := ioc.NewWechatHandlerConfig()
 	oauth2WechatHandler := web.NewOauth2WechatHandler(wechatService, userService, wechatHandlerConfig, handler)
-	articleRepository := repository.NewArticleRepository()
+	articleDao := dao.NewGormArticleDao(db)
+	articleRepository := repository.NewArticleRepository(articleDao)
 	articleService := service.NewArticleService(articleRepository)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	engine := ioc.InitWebServer(v, userHandler, oauth2WechatHandler, articleHandler)
@@ -46,9 +47,11 @@ func InitWebServer() *gin.Engine {
 }
 
 func InitArticleHandler() *web.ArticleHandler {
-	articleRepository := repository.NewArticleRepository()
-	articleService := service.NewArticleService(articleRepository)
 	loggerV1 := ioc.InitLogger()
+	db := ioc.InitDB(loggerV1)
+	articleDao := dao.NewGormArticleDao(db)
+	articleRepository := repository.NewArticleRepository(articleDao)
+	articleService := service.NewArticleService(articleRepository)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	return articleHandler
 }
@@ -59,4 +62,4 @@ var thirdPartySet = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitLogger)
 
 var userSvcProvider = wire.NewSet(dao.NewUserDao, cache.NewUserCache, repository.NewUserRepository, service.NewUserService)
 
-var articleSvcProvider = wire.NewSet(service.NewArticleService)
+var articleSvcProvider = wire.NewSet(repository.NewArticleRepository, dao.NewGormArticleDao, service.NewArticleService)

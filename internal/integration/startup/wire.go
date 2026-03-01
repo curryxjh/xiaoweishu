@@ -27,7 +27,10 @@ var userSvcProvider = wire.NewSet(
 )
 
 var articleSvcProvider = wire.NewSet(
-	service.NewArticleService)
+	repository.NewArticleRepository,
+	dao.NewGormArticleDao,
+	service.NewArticleService,
+)
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
@@ -38,7 +41,6 @@ func InitWebServer() *gin.Engine {
 		cache.NewCodeCache,
 		// Repository
 		repository.NewCodeRepository,
-		repository.NewArticleRepository,
 		// Service
 		service.NewCodeService,
 		ioc.InitSmsService,
@@ -59,6 +61,6 @@ func InitWebServer() *gin.Engine {
 }
 
 func InitArticleHandler() *web.ArticleHandler {
-	wire.Build(thirdPartySet, repository.NewArticleRepository, service.NewArticleService, web.NewArticleHandler)
+	wire.Build(thirdPartySet, dao.NewGormArticleDao, repository.NewArticleRepository, service.NewArticleService, web.NewArticleHandler)
 	return &web.ArticleHandler{}
 }

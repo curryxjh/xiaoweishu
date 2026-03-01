@@ -3,14 +3,18 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"xiaoweishu/internal/integration/startup"
+	"xiaoweishu/internal/repository/dao"
+	ijwt "xiaoweishu/internal/web/jwt"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 // 预期输入
@@ -30,13 +34,25 @@ type Result[T any] struct {
 type ArticleTestSuite struct {
 	suite.Suite
 	server *gin.Engine
+	db     *gorm.DB
 }
 
 func (s *ArticleTestSuite) SetupSuite() {
 	// 在所有测试执行之前，初始化一些内容
 	s.server = gin.Default()
+	s.server.Use(func(ctx *gin.Context) {
+		ctx.Set("claims", &ijwt.UserClaims{
+			Uid: 123,
+		})
+	})
+	s.db = startup.IniTesttDB()
 	artHdl := startup.InitArticleHandler()
 	artHdl.RegisterRoutes(s.server)
+}
+
+func (s *ArticleTestSuite) TearDownTest() {
+	// 清空所有数据，并且自增主键恢复到1
+	s.db.Exec("TRUNCATE TABLE articles")
 }
 
 func TestArticle(t *testing.T) {
@@ -66,7 +82,24 @@ func (s *ArticleTestSuite) TestArticleEdit() {
 		{
 			name:   "新建帖子-保存成功",
 			before: func(t *testing.T) {},
-			after:  func(t *testing.T) {},
+			after: func(t *testing.T) {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", 1).First(&art).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Ctime > 0)
+				assert.True(t, art.Utime > 0)
+				art.Ctime = 0
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       1,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 123,
+					Ctime:    0,
+					Utime:    0,
+				}, art)
+			},
 			article: Article{
 				Title:   "标题",
 				Content: "内容",
