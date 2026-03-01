@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+	"xiaoweishu/internal/integration/startup"
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/ioc"
 
@@ -16,7 +17,7 @@ import (
 )
 
 func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
-	server := InitWebServer()
+	server := startup.InitWebServer()
 	rdb := ioc.InitRedis()
 	testCases := []struct {
 		name string
