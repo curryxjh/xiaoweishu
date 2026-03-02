@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -29,6 +30,7 @@ type Article struct {
 
 type ArticleDao interface {
 	Insert(ctx context.Context, article Article) (int64, error)
+	UpdateById(ctx context.Context, article Article) error
 }
 
 type GormArticleDao struct {
@@ -47,4 +49,25 @@ func (dao *GormArticleDao) Insert(ctx context.Context, article Article) (int64, 
 	article.Utime = now
 	err := dao.db.WithContext(ctx).Create(&article).Error
 	return article.Id, err
+}
+
+func (dao *GormArticleDao) UpdateById(ctx context.Context, article Article) error {
+	now := time.Now().UnixMilli()
+	article.Utime = now
+	// gorm 忽略零值特性，使用主键进行更新
+	res := dao.db.WithContext(ctx).Model(&article).
+		Where("id=? AND author_id=?", article.Id, article.AuthorId).
+		Updates(map[string]any{
+			"title":   article.Title,
+			"content": article.Content,
+			"utime":   article.Utime,
+		})
+	// 需不需要检查是否真的更新
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 { // 更新行数
+		return fmt.Errorf("更新失败，文章不存在或非作者本人, id: %d, author_id: %d", article.Id, article.AuthorId)
+	}
+	return res.Error
 }

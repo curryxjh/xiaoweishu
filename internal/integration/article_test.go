@@ -19,6 +19,7 @@ import (
 
 // 预期输入
 type Article struct {
+	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
@@ -108,6 +109,89 @@ func (s *ArticleTestSuite) TestArticleEdit() {
 			wantRes: Result[int64]{
 				Msg:  "OK",
 				Data: 1,
+			},
+		},
+		{
+			name: "更新帖子-更新成功",
+			before: func(t *testing.T) {
+				// 提前准备数据
+				err := s.db.Create(&dao.Article{
+					Id:       2,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 123,
+					Ctime:    123,
+					Utime:    234,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", 2).First(&art).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Utime > 234)
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       2,
+					Title:    "新的标题",
+					Content:  "新的内容",
+					AuthorId: 123,
+					Ctime:    123,
+					Utime:    0,
+				}, art)
+			},
+			article: Article{
+				Id:      2,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Msg:  "OK",
+				Data: 2,
+			},
+		},
+		{
+			name: "修改他人帖子-修改失败",
+			before: func(t *testing.T) {
+				// 提前准备数据
+				err := s.db.Create(&dao.Article{
+					Id:      3,
+					Title:   "标题",
+					Content: "内容",
+					// 测试模拟的用户是 123， 此处帖子的用户是 789
+					// 意味着修改他人的数据
+					AuthorId: 789,
+					Ctime:    123,
+					Utime:    234,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", 3).First(&art).Error
+				assert.NoError(t, err)
+				assert.Equal(t, dao.Article{
+					Id:       3,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 789,
+					Ctime:    123,
+					Utime:    234,
+				}, art)
+			},
+			article: Article{
+				Id:      3,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
+				Data: 0,
 			},
 		},
 	}
