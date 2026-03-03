@@ -75,3 +75,7 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 		Data: id,
 	})
 }
+
+func (a *ArticleHandler) Publish(ctx *gin.Context) {
+
+}

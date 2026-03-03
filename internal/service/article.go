@@ -8,6 +8,7 @@ import (
 
 type ArticleService interface {
 	Save(ctx context.Context, article domain.Article) (int64, error)
+	Publish(ctx context.Context, article domain.Article) (int64, error)
 }
 
 type articleService struct {
@@ -26,4 +27,8 @@ func (a *articleService) Save(ctx context.Context, article domain.Article) (int6
 	} else {
 		return a.repo.Create(ctx, article)
 	}
+}
+
+func (a *articleService) Publish(ctx context.Context, article domain.Article) (int64, error) {
+	return 0, nil
 }
