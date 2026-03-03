@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"xiaoweishu/internal/domain"
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/pkg/logger"
 	"xiaoweishu/internal/service"
 	svcmocks "xiaoweishu/internal/service/mocks"
+	ijwt "xiaoweishu/internal/web/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -36,11 +38,19 @@ func TestArticleHandler_Publish(t *testing.T) {
 }
 `,
 			mock: func(ctrl *gomock.Controller) service.ArticleService {
-				return svcmocks.NewMockArticleService(ctrl)
+				svc := svcmocks.NewMockArticleService(ctrl)
+				svc.EXPECT().Publish(gomock.Any(), domain.Article{
+					Title:   "标题",
+					Content: "内容",
+					Author: domain.Author{
+						Id: 123,
+					},
+				}).Return(int64(1), nil)
+				return svc
 			},
 			wantCode: http.StatusOK,
 			wantRes: ginx.Result{
-				Data: 1,
+				Data: float64(1),
 				Msg:  "OK",
 			},
 		},
@@ -50,6 +60,11 @@ func TestArticleHandler_Publish(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			server := gin.Default()
+			server.Use(func(ctx *gin.Context) {
+				ctx.Set("claims", &ijwt.UserClaims{
+					Uid: 123,
+				})
+			})
 			h := NewArticleHandler(tc.mock(ctrl), &logger.NopLogger{})
 			h.RegisterRoutes(server)
 			req, err := http.NewRequest(http.MethodPost, "/articles/publish", bytes.NewBuffer([]byte(tc.reqBody)))
