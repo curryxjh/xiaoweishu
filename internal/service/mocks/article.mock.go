@@ -41,6 +41,21 @@ func (m *MockArticleService) EXPECT() *MockArticleServiceMockRecorder {
 	return m.recorder
 }
 
+// Publish mocks base method.
+func (m *MockArticleService) Publish(ctx context.Context, article domain.Article) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Publish", ctx, article)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Publish indicates an expected call of Publish.
+func (mr *MockArticleServiceMockRecorder) Publish(ctx, article any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockArticleService)(nil).Publish), ctx, article)
+}
+
 // Save mocks base method.
 func (m *MockArticleService) Save(ctx context.Context, article domain.Article) (int64, error) {
 	m.ctrl.T.Helper()

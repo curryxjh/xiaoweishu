@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +11,11 @@ import (
 	"xiaoweishu/internal/pkg/ginx"
 	"xiaoweishu/internal/service"
 	svcmocks "xiaoweishu/internal/service/mocks"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 //func TestEncrypt(t *testing.T) {
@@ -162,7 +163,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 
 			server := gin.Default()
 			// SignUp 没有使用CodeService
-			h := NewUserHandler(tc.mock(ctrl), nil)
+			h := NewUserHandler(tc.mock(ctrl), nil, nil)
 			h.RegisterRoutes(server)
 
 			req, err := http.NewRequest(http.MethodPost, "/users/signup", bytes.NewBuffer([]byte(tc.reqBody)))
@@ -303,7 +304,8 @@ func TestUserHandler_LoginSMS(t *testing.T) {
 			defer ctrl.Finish()
 
 			server := gin.Default()
-			h := NewUserHandler(tc.mock(ctrl))
+			userSvc, codeSvc := tc.mock(ctrl)
+			h := NewUserHandler(userSvc, codeSvc, nil)
 			h.RegisterRoutes(server)
 
 			req, err := http.NewRequest(http.MethodPost, "/users/login_sms", bytes.NewBuffer([]byte(tc.reqBody)))

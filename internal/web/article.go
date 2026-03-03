@@ -28,15 +28,28 @@ func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1) *ArticleHa
 func (a *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/articles")
 	ug.POST("/edit", a.Edit)
+	ug.POST("/publish", a.Publish)
+}
+
+type ArticleReq struct {
+	Id      int64  `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+func (req ArticleReq) toDomain(uid int64) domain.Article {
+	return domain.Article{
+		Id:      req.Id,
+		Title:   req.Title,
+		Content: req.Content,
+		Author: domain.Author{
+			Id: uid,
+		},
+	}
 }
 
 func (a *ArticleHandler) Edit(ctx *gin.Context) {
-	type Req struct {
-		Id      int64  `json:"id"`
-		Title   string `json:"title"`
-		Content string `json:"content"`
-	}
-	var req Req
+	var req ArticleReq
 	if err := ctx.Bind(&req); err != nil {
 		return
 	}
@@ -54,20 +67,45 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 	// 检测输入
 
 	// 调用 svc
-	id, err := a.svc.Save(ctx, domain.Article{
-		Id:      req.Id,
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: claims.Uid,
-		},
-	})
+	id, err := a.svc.Save(ctx, req.toDomain(claims.Uid))
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
 		a.l.Error("保存帖子失败", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, ginx.Result{
+		Msg:  "OK",
+		Data: id,
+	})
+}
+
+func (a *ArticleHandler) Publish(ctx *gin.Context) {
+	var req ArticleReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	c := ctx.MustGet("claims")
+	claims, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("未发现用户信息")
+		return
+	}
+	// 调用 svc
+	id, err := a.svc.Publish(ctx, req.toDomain(claims.Uid))
+	if err != nil {
+		ctx.JSON(http.StatusOK, ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("发表帖子失败", logger.Error(err))
 		return
 	}
 	ctx.JSON(http.StatusOK, ginx.Result{
